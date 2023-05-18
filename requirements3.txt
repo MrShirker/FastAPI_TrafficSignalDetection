@@ -1,0 +1,8 @@
+# plotting ------------------------------------
+seaborn>=0.11.0
+pandas
+
+# extras --------------------------------------
+thop  # FLOPS computation
+pycocotools>=2.0  # COCO mAP
+torchvision>=0.8.1 
