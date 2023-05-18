@@ -195,7 +195,7 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--host', default = 'localhost')
-    parser.add_argument('--port', default = 7000)
+    parser.add_argument('--port', default = 8000)
     parser.add_argument('--precache-models', action='store_true', 
             help='Pre-cache all models in memory upon initialization, otherwise dynamically caches models')
     opt = parser.parse_args()
