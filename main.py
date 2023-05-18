@@ -10,12 +10,23 @@ import torch
 import base64
 import random
 
+import ultralytics
+
 app = FastAPI()
 templates = Jinja2Templates(directory = 'templates')
 
 model_selection_options = ['yolov5s','yolov5m','yolov5l','yolov5x','yolov5n',
                         'yolov5n6','yolov5s6','yolov5m6','yolov5l6','yolov5x6']
 model_dict = {model_name: None for model_name in model_selection_options} #set up model cache
+
+# Obtener la lista de nombres de archivos en la carpeta
+file_names = os.listdir('modelos/')
+# Extensiones de modelos válidas
+valid_extensions = ['.pt', '.onnx', '.h5']
+# Filtrar solo los archivos con extensiones de modelos válidas
+model_names = [file_name.split('.')[0] for file_name in file_names if os.path.splitext(file_name)[1] in valid_extensions]
+# Crear el diccionario con los nombres de los modelos
+custom_model_dict = {model_name: None for model_name in model_names}
 
 colors = [tuple([random.randint(0, 255) for _ in range(3)]) for _ in range(100)] #for bbox plotting
 
@@ -107,7 +118,8 @@ def detect_via_api(request: Request,
                 file_list: List[UploadFile] = File(...), 
                 model_name: str = Form(...),
                 img_size: Optional[int] = Form(640),
-                download_image: Optional[bool] = Form(False)):
+                download_image: Optional[bool] = Form(False),
+                custom_model: Optional[bool] = Form(False)):
     
     '''
     Requires an image file upload, model name (ex. yolov5s). 
@@ -120,9 +132,6 @@ def detect_via_api(request: Request,
 
     Intended for API usage.
     '''
-
-    if model_dict[model_name] is None:
-        model_dict[model_name] = torch.hub.load('ultralytics/yolov5', model_name, pretrained=True)
     
     img_batch = [cv2.imdecode(np.fromstring(file.file.read(), np.uint8), cv2.IMREAD_COLOR)
                 for file in file_list]
@@ -131,9 +140,17 @@ def detect_via_api(request: Request,
     #using cvtColor instead of [...,::-1] to keep array contiguous in RAM
     img_batch_rgb = [cv2.cvtColor(img, cv2.COLOR_BGR2RGB) for img in img_batch]
     
-    results = model_dict[model_name](img_batch_rgb, size = img_size) 
+    if custom_model:
+        if custom_model_dict[model_name] is None:
+            custom_model_dict[model_name] = torch.hub.load('ultralytics/yolov5', 'custom',  path='/modelos/',model_name,'.pt')
+        results = custom_model_dict[model_name](img_batch_rgb, size = img_size) 
+        json_results = results_to_json(results,custom_model_dict[model_name])
+    else:
+        if model_dict[model_name] is None:
+            model_dict[model_name] = torch.hub.load('ultralytics/yolov5', model_name, pretrained=True)
+        results = model_dict[model_name](img_batch_rgb, size = img_size) 
     json_results = results_to_json(results,model_dict[model_name])
-
+    
     if download_image:
         #server side render the image with bounding boxes
         for idx, (img, bbox_list) in enumerate(zip(img_batch, json_results)):
