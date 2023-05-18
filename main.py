@@ -11,6 +11,7 @@ import base64
 import random
 
 import ultralytics
+import os
 
 app = FastAPI()
 templates = Jinja2Templates(directory = 'templates')
@@ -133,7 +134,7 @@ def detect_via_api(request: Request,
     Intended for API usage.
     '''
     
-    img_batch = [cv2.imdecode(np.fromstring(file.file.read(), np.uint8), cv2.IMREAD_COLOR)
+    img_batch = [cv2.imdecode(np.frombuffer(file.file.read(), np.uint8), cv2.IMREAD_COLOR)
                 for file in file_list]
 
     #create a copy that corrects for cv2.imdecode generating BGR images instead of RGB, 
@@ -142,14 +143,19 @@ def detect_via_api(request: Request,
     
     if custom_model:
         if custom_model_dict[model_name] is None:
-            custom_model_dict[model_name] = torch.hub.load('ultralytics/yolov5', 'custom',  path='/modelos/',model_name,'.pt')
+            custom_path = 'modelos/'+model_name+'.pt'
+            # custom_path = model_name+'.pt'
+            print(custom_path)
+            for clave in custom_model_dict.keys():
+                print(clave)
+            custom_model_dict[model_name] = torch.hub.load('ultralytics/yolov5', 'custom',  path=custom_path)
         results = custom_model_dict[model_name](img_batch_rgb, size = img_size) 
         json_results = results_to_json(results,custom_model_dict[model_name])
     else:
         if model_dict[model_name] is None:
             model_dict[model_name] = torch.hub.load('ultralytics/yolov5', model_name, pretrained=True)
         results = model_dict[model_name](img_batch_rgb, size = img_size) 
-    json_results = results_to_json(results,model_dict[model_name])
+        json_results = results_to_json(results,model_dict[model_name])
     
     if download_image:
         #server side render the image with bounding boxes
@@ -221,5 +227,5 @@ if __name__ == '__main__':
         model_dict = {model_name: torch.hub.load('ultralytics/yolov5', model_name, pretrained=True) 
                         for model_name in model_selection_options}
     
-    app_str = 'server:app' #make the app string equal to whatever the name of this file is
+    app_str = 'main:app' #make the app string equal to whatever the name of this file is
     uvicorn.run(app_str, host= opt.host, port=opt.port, reload=True)
