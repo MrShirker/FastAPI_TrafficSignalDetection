@@ -9,7 +9,6 @@ import cv2
 import numpy as np
 
 import torch
-import base64
 import random
 
 import ultralytics
@@ -26,9 +25,10 @@ model_dict = {model_name: None for model_name in model_selection_options} #set u
 # Obtener la lista de nombres de archivos en la carpeta
 file_names = os.listdir('modelos/')
 # Extensiones de modelos válidas
-valid_extensions = ['.pt', '.onnx', '.h5']
+valid_extensions = ['.torchscript', '.onnx', '_openvino_model', '.engine ', '.mlmodel', '_saved_model', '.pt', '.tflite', '_edgetpu.tflite', '_paddle_model ']
+
 # Filtrar solo los archivos con extensiones de modelos válidas
-model_names = [file_name.split('.')[0] for file_name in file_names if os.path.splitext(file_name)[1] in valid_extensions]
+model_names = [file_name for file_name in file_names if os.path.splitext(file_name)[1] in valid_extensions]
 # Crear el diccionario con los nombres de los modelos
 custom_model_dict = {model_name: None for model_name in model_names}
 
@@ -66,9 +66,7 @@ async def root():
 def detect_via_api(request: Request,
                 file_list: List[UploadFile] = File(...), 
                 model_name: str = Form(...),
-                img_size: Optional[int] = Form(640),
-                download_image: Optional[bool] = Form(False),
-                custom_model: Optional[bool] = Form(False)):
+                img_size: Optional[int] = Form(640)):
     
     '''
     Requires an image file upload, model name (ex. yolov5s). 
@@ -89,34 +87,37 @@ def detect_via_api(request: Request,
     #using cvtColor instead of [...,::-1] to keep array contiguous in RAM
     img_batch_rgb = [cv2.cvtColor(img, cv2.COLOR_BGR2RGB) for img in img_batch]
     
+    if model_name in custom_model_dict:
+        custom_model = True
+    else:
+        custom_model = False
+        
+    if model_name in model_dict:
+        yolo_model = True
+    else:
+        yolo_model = False
+
     if custom_model:
         if custom_model_dict[model_name] is None:
-            custom_path = 'modelos/'+model_name+'.pt'
-            # custom_path = model_name+'.pt'
-            print(custom_path)
-            for clave in custom_model_dict.keys():
-                print(clave)
+            custom_path = 'modelos/'+model_name
             custom_model_dict[model_name] = torch.hub.load('ultralytics/yolov5', 'custom',  path=custom_path)
         results = custom_model_dict[model_name](img_batch_rgb, size = img_size) 
         json_results = results_to_json(results,custom_model_dict[model_name])
-    else:
+    elif yolo_model:
         if model_dict[model_name] is None:
             model_dict[model_name] = torch.hub.load('ultralytics/yolov5', model_name, pretrained=True)
         results = model_dict[model_name](img_batch_rgb, size = img_size) 
         json_results = results_to_json(results,model_dict[model_name])
-    
-    if download_image:
-        #server side render the image with bounding boxes
-        for idx, (img, bbox_list) in enumerate(zip(img_batch, json_results)):
-            for bbox in bbox_list:
-                label = f'{bbox["class_name"]} {bbox["confidence"]:.2f}'
-                plot_one_box(bbox['bbox'], img, label=label, 
-                        color=colors[int(bbox['class'])], line_thickness=3)
-
-            payload = {'image_base64':base64EncodeImage(img)}
-            json_results[idx].append(payload)
+    else:
+        print("El modelo elegido no esta disponible")
 
     encoded_json_results = str(json_results).replace("'",r'"')
+    return encoded_json_results
+
+@app.get("/custom_models")
+def get_custom_models():    
+    lista = list(custom_model_dict)
+    encoded_json_results = str(lista).replace("'",r'"')
     return encoded_json_results
     
 ##############################################
@@ -152,14 +153,6 @@ def plot_one_box(x, im, color=(128, 128, 128), label=None, line_thickness=3):
         c2 = c1[0] + t_size[0], c1[1] - t_size[1] - 3
         cv2.rectangle(im, c1, c2, color, -1, cv2.LINE_AA)  # filled
         cv2.putText(im, label, (c1[0], c1[1] - 2), 0, tl / 3, [225, 255, 255], thickness=tf, lineType=cv2.LINE_AA)
-
-
-def base64EncodeImage(img):
-    ''' Takes an input image and returns a base64 encoded string representation of that image (jpg format)'''
-    _, im_arr = cv2.imencode('.jpg', img)
-    im_b64 = base64.b64encode(im_arr.tobytes()).decode('utf-8')
-
-    return im_b64
 
 if __name__ == '__main__':
     import uvicorn
