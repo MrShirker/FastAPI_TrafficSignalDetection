@@ -28,3 +28,6 @@ pandas
 thop  # FLOPS computation
 pycocotools>=2.0  # COCO mAP
 torchvision>=0.8.1 
+scikit-image
+filterpy
+
