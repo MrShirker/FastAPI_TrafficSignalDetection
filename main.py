@@ -7,6 +7,8 @@ from typing import List, Optional
 
 import cv2
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 
 import torch
 import random
