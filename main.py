@@ -7,9 +7,10 @@ from typing import List, Optional
 
 import cv2
 import numpy as np
-
+import time
 import torch
 import random
+from pathlib import Path
 
 import ultralytics
 import os
@@ -86,6 +87,8 @@ def detect_via_api(request: Request,
     Intended for API usage.
     '''
     
+    TIC = time.perf_counter()
+    
     img_batch = [cv2.imdecode(np.frombuffer(file.file.read(), np.uint8), cv2.IMREAD_COLOR)
                 for file in file_list]
 
@@ -146,6 +149,17 @@ def detect_via_api(request: Request,
         print("El modelo elegido no esta disponible")
 
     encoded_json_results = str(json_results).replace("'",r'"')
+    
+    TOC = time.perf_counter()
+    
+    # Abrir el archivo en modo de escritura (append)
+    with open("T_proc.txt", "a") as archivo:
+        # Escribir el valor en una nueva línea con dos decimales
+        archivo.write("{:.2f}\n".format(TOC - TIC))
+
+    # Cerrar el archivo
+    archivo.close()
+    
     return encoded_json_results
 
 @app.get("/custom_models")
@@ -153,6 +167,11 @@ def get_custom_models():
     lista = list(custom_model_dict)
     encoded_json_results = str(lista).replace("'",r'"')
     return encoded_json_results
+
+@app.get("/t_proc")
+def obtener_media_numeros():
+    media = calcular_media_numeros()
+    return {"media": media}
     
 ##############################################
 #--------------Helper Functions---------------
@@ -187,6 +206,25 @@ def plot_one_box(x, im, color=(128, 128, 128), label=None, line_thickness=3):
         c2 = c1[0] + t_size[0], c1[1] - t_size[1] - 3
         cv2.rectangle(im, c1, c2, color, -1, cv2.LINE_AA)  # filled
         cv2.putText(im, label, (c1[0], c1[1] - 2), 0, tl / 3, [225, 255, 255], thickness=tf, lineType=cv2.LINE_AA)
+
+def calcular_media_numeros():
+    archivo = Path("T_proc.txt")
+    suma = 0
+    contador = 0
+
+    with archivo.open() as f:
+        for linea in f:
+            numero = float(linea)
+            suma += numero
+            contador += 1
+
+    media = round(suma / contador, 2)
+
+    # Vaciar el archivo
+    with archivo.open("w") as f:
+        f.truncate(0)
+
+    return media
 
 if __name__ == '__main__':
     import uvicorn
