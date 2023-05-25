@@ -149,7 +149,7 @@ def detect_via_api(request: Request,
         print("El modelo elegido no esta disponible")
     TOC = time.perf_counter()
     
-    json_results[1] = f'{1000*(TOC - TIC):.2f}'
+    json_results.add(f'{1000*(TOC - TIC):.2f}')
         
     encoded_json_results = str(json_results).replace("'",r'"')
     
