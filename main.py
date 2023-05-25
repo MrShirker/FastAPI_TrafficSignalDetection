@@ -122,10 +122,10 @@ def detect_via_api(request: Request,
             
             if len(track_bbs_ids) > 0:
                 for j in range(len(track_bbs_ids.tolist())):
-                    coords = track_bbs_ids.tolist()[j]
+                    ids = track_bbs_ids.tolist()[j]
                     
                     # Agregar el ID actualizado a json_results
-                    json_results[0][j]['tracker_id'] = int(coords[4])  
+                    json_results[0][j]['tracker_id'] = int(ids[4])  
     elif yolo_model:
         if model_dict[model_name] is None:
             model_dict[model_name] = torch.hub.load('ultralytics/yolov5', model_name, pretrained=True)
@@ -141,24 +141,26 @@ def detect_via_api(request: Request,
             
             if len(track_bbs_ids) > 0:
                 for j in range(len(track_bbs_ids.tolist())):
-                    coords = track_bbs_ids.tolist()[j]
+                    ids = track_bbs_ids.tolist()[j]
                     
                     # Agregar el ID actualizado a json_results
-                    json_results[0][j]['tracker_id'] = int(coords[4])     
+                    json_results[0][j]['tracker_id'] = int(ids[4])     
     else:
         print("El modelo elegido no esta disponible")
-
-    encoded_json_results = str(json_results).replace("'",r'"')
-    
     TOC = time.perf_counter()
     
-    # Abrir el archivo en modo de escritura (append)
-    with open("T_proc.txt", "a") as archivo:
-        # Escribir el valor en una nueva línea con dos decimales
-        archivo.write("{:.2f}\n".format(TOC - TIC))
-
-    # Cerrar el archivo
-    archivo.close()
+    json_results[1] = f'{1000*(TOC - TIC):.2f}'
+        
+    encoded_json_results = str(json_results).replace("'",r'"')
+    
+    
+    
+    # # Abrir el archivo en modo de escritura (append)
+    # with open("T_proc.txt", "a") as archivo:
+    #     # Escribir el valor en una nueva línea con dos decimales
+    #     archivo.write("{:.2f}\n".format(TOC - TIC))
+    # # Cerrar el archivo
+    # archivo.close()
     
     return encoded_json_results
 
