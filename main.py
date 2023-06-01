@@ -153,15 +153,6 @@ def detect_via_api(request: Request,
         
     encoded_json_results = str(json_results).replace("'",r'"')
     
-    
-    
-    # # Abrir el archivo en modo de escritura (append)
-    # with open("T_proc.txt", "a") as archivo:
-    #     # Escribir el valor en una nueva línea con dos decimales
-    #     archivo.write("{:.2f}\n".format(TOC - TIC))
-    # # Cerrar el archivo
-    # archivo.close()
-    
     return encoded_json_results
 
 @app.get("/custom_models")
@@ -169,11 +160,6 @@ def get_custom_models():
     lista = list(custom_model_dict)
     encoded_json_results = str(lista).replace("'",r'"')
     return encoded_json_results
-
-@app.get("/t_proc")
-def obtener_media_numeros():
-    media = calcular_media_numeros()
-    return {"media": media}
     
 ##############################################
 #--------------Helper Functions---------------
@@ -193,40 +179,6 @@ def results_to_json(results, model):
                 ]
             for result in results.xyxy
             ]
-
-
-def plot_one_box(x, im, color=(128, 128, 128), label=None, line_thickness=3):
-    # Directly copied from: https://github.com/ultralytics/yolov5/blob/cd540d8625bba8a05329ede3522046ee53eb349d/utils/plots.py
-    # Plots one bounding box on image 'im' using OpenCV
-    assert im.data.contiguous, 'Image not contiguous. Apply np.ascontiguousarray(im) to plot_on_box() input image.'
-    tl = line_thickness or round(0.002 * (im.shape[0] + im.shape[1]) / 2) + 1  # line/font thickness
-    c1, c2 = (int(x[0]), int(x[1])), (int(x[2]), int(x[3]))
-    cv2.rectangle(im, c1, c2, color, thickness=tl, lineType=cv2.LINE_AA)
-    if label:
-        tf = max(tl - 1, 1)  # font thickness
-        t_size = cv2.getTextSize(label, 0, fontScale=tl / 3, thickness=tf)[0]
-        c2 = c1[0] + t_size[0], c1[1] - t_size[1] - 3
-        cv2.rectangle(im, c1, c2, color, -1, cv2.LINE_AA)  # filled
-        cv2.putText(im, label, (c1[0], c1[1] - 2), 0, tl / 3, [225, 255, 255], thickness=tf, lineType=cv2.LINE_AA)
-
-def calcular_media_numeros():
-    archivo = Path("T_proc.txt")
-    suma = 0
-    contador = 0
-
-    with archivo.open() as f:
-        for linea in f:
-            numero = float(linea)
-            suma += numero
-            contador += 1
-
-    media = round(suma / contador, 2)
-
-    # Vaciar el archivo
-    with archivo.open("w") as f:
-        f.truncate(0)
-
-    return media
 
 if __name__ == '__main__':
     import uvicorn
